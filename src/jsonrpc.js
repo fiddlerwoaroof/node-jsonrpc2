@@ -19,6 +19,7 @@ var Client = function(port, host, user, password) {
     
     // First we encode the request into JSON
     var requestJSON = JSON.stringify({
+      'jsonrpc': '2.0',
       'id': '' + (new Date()).getTime(),
       'method': method,
       'params': params
