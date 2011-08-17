@@ -174,6 +174,7 @@ Server.prototype.handlePOST = function(req, res) {
                     JSON.stringify(funcResp));
 
       var encoded = JSON.stringify({
+        'jsonrpc': '2.0',
         'result': funcResp,
         'error': null,
         'id': decoded.id
@@ -188,6 +189,7 @@ Server.prototype.handlePOST = function(req, res) {
     var onFailure = function(failure) {
       Server.trace('-->', 'failure: ' + JSON.stringify(failure));
       var encoded = JSON.stringify({
+        'jsonrpc': '2.0',
         'result': null,
         'error': failure || 'Unspecified Failure',
         'id': decoded.id
