@@ -1,10 +1,6 @@
 var sys = require('sys');
 var http = require('http');
 
-var METHOD_NOT_ALLOWED = "Method Not Allowed\n";
-var INVALID_REQUEST = "Invalid Request\n";
-
-
 //===----------------------------------------------------------------------===//
 // Server Client
 //===----------------------------------------------------------------------===//
@@ -56,15 +52,19 @@ var Client = function(port, host, user, password) {
       // depending on whether it's got a result or an error, we call
       // emitSuccess or emitError on the promise.
       response.on('end', function() {
-        var decoded = JSON.parse(buffer);
+        var decoded = JSON.parse(buffer); // TODO: Check for invalid response from server
         if(decoded.hasOwnProperty('result')) {
-          if (callback)
+          if (callback) 
             callback(null, decoded.result);
-        }
-        else {
-          if (errback)
-            errback(decoded.error);
-        }
+          
+        } else {
+          // Call error handler if it is set, otherwise call callback with error parameters
+          if (errback) {
+          	errback(decoded.error);
+          } else if(callback) {
+          	callback(decoded.error, null);
+          }
+       }
       });
     });
   };
@@ -144,61 +144,48 @@ Server.prototype.listen = function(port, host) {
 
 
 //===----------------------------------------------------------------------===//
-// handleInvalidRequest
-//===----------------------------------------------------------------------===//
-Server.handleInvalidRequest = function(req, res) {
-  res.writeHead(400, {'Content-Type': 'text/plain',
-                      'Content-Length': INVALID_REQUEST.length});
-  res.write(INVALID_REQUEST);
-  res.end();
-}
-
-
-//===----------------------------------------------------------------------===//
 // handlePOST
 //===----------------------------------------------------------------------===//
 Server.prototype.handlePOST = function(req, res) {
   var buffer = '';
   var self = this;
   var handle = function (buf) {
-    var decoded = JSON.parse(buf);
+    
+    var decoded = "";
+    try {
+    	decoded = JSON.parse(buf);
+    } catch (e) {
+    	return Server.handleError(-32700, "Parse Error", null, req, res);
+    }
+    
 
     // Check for the required fields, and if they aren't there, then
-    // dispatch to the handleInvalidRequest function.
+    // dispatch to the handleError function.    
     if(!(decoded.method && decoded.params && decoded.id)) {
-      return Server.handleInvalidRequest(req, res);
+      
+      if (typeof(id) == "undefined") {
+   		var id = null;
+   	  } 
+   	  
+      return Server.handleError(-32600, "Invalid Request", decoded.id, req, res);
     }
 
     if(!self.functions.hasOwnProperty(decoded.method)) {
-      return Server.handleInvalidRequest(req, res);
+      return Server.handleError(-32601, "Method not found", decoded.id, req, res);
     }
 
     // Build our success handler
     var onSuccess = function(funcResp) {
       Server.trace('-->', 'response (id ' + decoded.id + '): ' + 
                     JSON.stringify(funcResp));
-
-      var encoded = JSON.stringify({
+	
+	  var encoded = JSON.stringify({
         'jsonrpc': '2.0',
         'result': funcResp,
         'error': null,
         'id': decoded.id
       });
-      res.writeHead(200, {'Content-Type': 'application/json',
-                          'Content-Length': encoded.length});
-      res.write(encoded);
-      res.end();
-    };
-
-    // Build our failure handler (note that error must not be null)
-    var onFailure = function(failure) {
-      Server.trace('-->', 'failure: ' + JSON.stringify(failure));
-      var encoded = JSON.stringify({
-        'jsonrpc': '2.0',
-        'result': null,
-        'error': failure || 'Unspecified Failure',
-        'id': decoded.id
-      });
+      
       res.writeHead(200, {'Content-Type': 'application/json',
                           'Content-Length': encoded.length});
       res.write(encoded);
@@ -211,9 +198,9 @@ Server.prototype.handlePOST = function(req, res) {
     // Try to call the method, but intercept errors and call our
     // onFailure handler.
     var method = self.functions[decoded.method];
-    var callback = function(err, result) {
-      if (err) {
-        onFailure(err);
+    var callback = function(result, errormessage) {
+      if (errormessage) {
+        Server.handleError(-32602, errormessage, decoded.id, req, res);
       } else {
         onSuccess(result);
       }
@@ -230,7 +217,7 @@ Server.prototype.handlePOST = function(req, res) {
     try {
       method.call(scope, decoded.params, opt, callback);
     } catch (err) {
-      return onFailure(err);
+      return Server.handleError(-32603, err, decoded.id, req, res);
     }
 
   } // function handle(buf)
@@ -244,15 +231,49 @@ Server.prototype.handlePOST = function(req, res) {
   });
 }
 
+//===----------------------------------------------------------------------===//
+// handleError
+//===----------------------------------------------------------------------===//
+Server.handleError = function(code, message, id, req, res) {
+  
+  var encoded = JSON.stringify({
+  	'jsonrpc': '2.0',
+    'error': {
+    	'code':code,
+    	'message':message
+    },
+    'id': id
+  });
+  
+  res.writeHead(400, {'Content-Type': 'text/plain',
+                      'Content-Length': encoded.length,
+                      'Allow': 'POST'});
+  
+  res.write(encoded);
+  res.end();
+  
+  Server.trace('-->', 'Failure: ' + code + ': ' + message);
+}
+
 
 //===----------------------------------------------------------------------===//
 // handleNonPOST
 //===----------------------------------------------------------------------===//
 Server.handleNonPOST = function(req, res) {
+  
+  var encoded = JSON.stringify({
+  	'jsonrpc': '2.0',
+    'error': {
+    	'code':-32600,
+    	'message':"Only POST is allowed."
+    },
+    'id': null
+  });
+  
   res.writeHead(405, {'Content-Type': 'text/plain',
-                      'Content-Length': METHOD_NOT_ALLOWED.length,
+                      'Content-Length': encoded.length,
                       'Allow': 'POST'});
-  res.write(METHOD_NOT_ALLOWED);
+  res.write(encoded);
   res.end();
 }
 

@@ -19,7 +19,7 @@ var rpc = require('jsonrpc2');
 var server = new rpc.Server();
 
 function add(args, opt, callback) {
-  callback(null, args[0] + args[1]);
+  callback(args[0] + args[1]);
 }
 server.expose('add', add);
 

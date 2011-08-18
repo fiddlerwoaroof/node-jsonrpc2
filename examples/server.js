@@ -4,11 +4,11 @@ var server = new rpc.Server();
 
 /* Create two simple functions */
 function add(args, opts, callback) {
-  callback(null, args[0]+args[1]);
+  callback(args[0]+args[1]);
 }
 
 function multiply(args, opts, callback) {
-  callback(null, args[0]*args[1]);
+  callback(args[0]*args[1]);
 }
 
 /* Expose those methods */
@@ -18,10 +18,10 @@ server.expose('multiply', multiply);
 /* We can expose entire modules easily */
 var math = {
   power: function(args, opts, callback) {
-    callback(null, Math.pow(args[0], args[1]));
+    callback(Math.pow(args[0], args[1]));
   },
   sqrt: function(args, opts, callback) {
-    callback(null, Math.sqrt(args[0]));
+    callback(Math.sqrt(args[0]));
   }
 }
 server.exposeModule('math', math);
@@ -36,7 +36,7 @@ var delayed = {
     var data = args[0];
     var delay = args[1];
     setTimeout(function() {
-      callback(null, data);
+      callback(data);
     }, delay);
   },
 
@@ -45,9 +45,18 @@ var delayed = {
     var second = args[1];
     var delay = args[2];
     setTimeout(function() {
-      callback(null, first + second);
+      callback(first + second);
     }, delay);
   }
 }
 
 server.exposeModule('delayed', delayed);
+
+
+// We can also add error parameters to our callback
+// if something went wrong
+function wrong(arg, opts, callback) {
+	callback(null, "This will ever go wrong.")
+}
+server.expose('wrong', wrong);
+

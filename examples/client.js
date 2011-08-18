@@ -17,12 +17,21 @@ client.call('math.power', [3, 3], function (err, result) {
 });
 
 // We can handle errors the same way as anywhere else in Node
-client.call('add', [1, 1], function (err, result) {
+client.call('wrong', [1, 1], function (err, result) {
   if (err) {
     sys.puts('RPC Error: '+ sys.inspect(err));
     return;
   }
-  sys.puts('  1 + 1 = ' + result + ', dummy!');
+  sys.puts(result);
+});
+
+// If you want to seperate the errors from your callback,
+// then define an extra error callback
+client.call('wrong', [1, 1], function (err, result) {
+  sys.puts(result);
+},
+function(err){
+	sys.puts('RPC Error: ' + sys.inspect(err));
 });
 
 /* These calls should each take 1.5 seconds to complete. */

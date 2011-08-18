@@ -38,7 +38,7 @@ var TestModule = {
 
 test('Server.expose', function() {
   var echo = function(args, opts, callback) {
-    callback(null, args[0]);
+    callback(args[0], null);
   };
   server.expose('echo', echo);
   assert(server.functions.echo === echo);
@@ -66,7 +66,6 @@ function testBadRequest(testJSON) {
   server.handlePOST(req, res);
   req.emit('data', testJSON);
   req.emit('end');
-  sys.puts(res.httpCode);
   assert(res.httpCode === 400);
 }
 
@@ -99,6 +98,7 @@ test('Simple synchronous echo', function() {
   server.handlePOST(req, res);
   req.emit('data', testJSON);
   req.emit('end');
+  
   assert(res.httpCode === 200);
   var decoded = JSON.parse(res.httpBody);
   assert(decoded.id === 1);
@@ -126,7 +126,7 @@ test('Using promise', function() {
   // yet.
   assert(res['httpCode'] == null);
   // We can force the promise to emit a success code, with a message.
-  callbackRef(null, 'Hello, World!');
+  callbackRef('Hello, World!', null);
   // Aha, now that the promise has finished, our request has finished as well.
   assert(res.httpCode === 200);
   var decoded = JSON.parse(res.httpBody);
@@ -146,13 +146,12 @@ test('Triggering an errback', function() {
   server.handlePOST(req, res);
   req.emit('data', testJSON);
   req.emit('end');
-  assert(res['httpCode'] == null);
   // This time, unlike the above test, we trigger an error and expect to see
   // it in the error attribute of the object returned.
-  callbackRef('This is an error');
-  assert(res.httpCode === 200);
+  callbackRef(null, 'This is an error');
+  assert(res.httpCode === 400);
   var decoded = JSON.parse(res.httpBody);
   assert(decoded.id === 1);
-  assert(decoded.error == 'This is an error');
+  assert(decoded.error.message == 'This is an error');
   assert(decoded.result == null);
 })
