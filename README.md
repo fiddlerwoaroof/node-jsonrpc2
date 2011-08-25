@@ -9,6 +9,7 @@ To install node-jsonrpc2 in the current directory, run:
 
     npm install jsonrpc2
 
+** Important: If you run this command, you will get not this repository, but [bitconjs repository](https://github.com/bitcoinjs/node-jsonrpc2)**
 ## Usage
 
 Firing up an efficient JSON-RPC server becomes extremely simple:
